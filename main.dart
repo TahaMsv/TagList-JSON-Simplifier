@@ -412,8 +412,139 @@ String convertJsonToFormattedString3(TagInformation tagInformation) {
   return compressedString;
 }
 
+String convertJsonToFormattedString4(TagInformation tagInformation) {
+  Map<int, Map<String, Map<String, List<String>>>> compressedInformation = createInformationMap(tagInformation);
+
+  String compressedString = "";
+  List<String> listOfStems = [];
+  compressedInformation.forEach((k, v) {
+    String containerCodesString = "";
+
+    compressedInformation[k].forEach((k2, v2) {
+      List<String> ccStringList = [];
+      String stem = "";
+      // print(k2);
+      compressedInformation[k][k2].forEach((k3, v3) {
+        List<String> tagNumbers = [];
+
+        for (var i = 0; i < v3.length; ++i) {
+          tagNumbers.add(v3[i]);
+        }
+        stem = findStem(tagNumbers);
+        listOfStems.add(stem);
+        for (var i = 0; i < v3.length; ++i) {
+          if (v3[i].startsWith(stem)) {
+            v3[i] = v3[i].replaceFirst(stem, "");
+          } else {
+            v3[i] = "-" + v3[i];
+          }
+        }
+
+        v3.sort();
+
+        String tagNumbersString = "";
+        if (v3.length > 1) {
+          List<String> numbersInRow = [];
+          List<int> numbers = v3.map(int.parse).toList();
+          int startNumberIndex = 0, endNumberIndex = 0;
+          String lastNumber = v3[startNumberIndex];
+          bool addingFirstRange = true;
+          for (var i = 1; i < numbers.length; ++i) {
+            if (numbers[i] - 1 == numbers[endNumberIndex]) {
+              endNumberIndex = i;
+            } else {
+              String combinedNumbers = "";
+              if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
+                combinedNumbers = v3[startNumberIndex];
+              } else {
+                String stem = findStem([v3[startNumberIndex], v3[endNumberIndex]]);
+                String endNumberString = v3[endNumberIndex].toString().replaceFirst(stem, "");
+                combinedNumbers = v3[startNumberIndex] + "_" + endNumberString;
+              }
+              if (addingFirstRange) {
+                numbersInRow.add(combinedNumbers);
+                addingFirstRange = false;
+              } else {
+                numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
+              }
+              lastNumber = v3[endNumberIndex];
+              startNumberIndex = endNumberIndex = i;
+            }
+            if (i == numbers.length - 1) {
+              String combinedNumbers = "";
+              if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
+                combinedNumbers = v3[startNumberIndex];
+              } else {
+                String stem = findStem([v3[startNumberIndex], v3[endNumberIndex]]);
+                String endNumberString = v3[endNumberIndex].toString().replaceFirst(stem, "");
+                combinedNumbers = v3[startNumberIndex] + "_" + endNumberString;
+              }
+              if (addingFirstRange) {
+                numbersInRow.add(combinedNumbers);
+                addingFirstRange = false;
+              } else {
+                numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
+              }
+              lastNumber = v3[endNumberIndex];
+            }
+          }
+          tagNumbersString = numbersInRow.join(',');
+        } else {
+          tagNumbersString = v3.join(',');
+        }
+        tagNumbersString = oddFunction(tagNumbersString);
+        // print(tagNumbersString);
+
+        ccStringList.add(k3 + ">" + tagNumbersString);
+      });
+
+      containerCodesString += "{" + (k2 + "=" + stem + ":" + ccStringList.join("''"));
+    });
+    compressedString += ("}" + (k.toString() + "=" + containerCodesString));
+  });
+  String stemOfStems = findStem(listOfStems);
+  compressedString = compressedString.replaceAll("=" + stemOfStems, "=");
+  compressedString = tagInformation.tagList.length.toString() + "," + stemOfStems + compressedString;
+
+  return compressedString;
+}
+
+Map<int, Map<String, Map<String, List<String>>>> createInformationMap(TagInformation tagInformation) {
+  Map<int, Map<String, Map<String, List<String>>>> compressedInformation = new Map();
+  for (var i = 0; i < tagInformation.tagList.length; ++i) {
+    String tagNumber = tagInformation.tagList[i].tagNumber;
+    int currentPosition = tagInformation.tagList[i].currentPosition;
+    String containerCode = tagInformation.tagList[i].tagPositions[0].containerCode;
+    String bin = tagInformation.tagList[i].tagPositions[0].bin;
+
+    if (bin == "") bin = "!";
+    if (containerCode == "") containerCode = "!";
+
+    if (compressedInformation.containsKey(currentPosition)) {
+      if (compressedInformation[currentPosition].containsKey(containerCode)) {
+        if (compressedInformation[currentPosition][containerCode].containsKey(bin)) {
+          compressedInformation[currentPosition][containerCode][bin].add(tagNumber);
+        } else {
+          compressedInformation[currentPosition][containerCode][bin] = List<String>.from([tagNumber]);
+        }
+      } else {
+        Map<String, List<String>> temp = new Map();
+        temp[bin] = List<String>.from([tagNumber]);
+        compressedInformation[currentPosition][containerCode] = temp;
+      }
+    } else {
+      Map<String, List<String>> temp = new Map();
+      temp[bin] = List<String>.from([tagNumber]);
+      Map<String, Map<String, List<String>>> temp2 = new Map();
+      temp2[containerCode] = temp;
+      compressedInformation[currentPosition] = temp2;
+    }
+  }
+  return compressedInformation;
+}
+
 TagInformation convertFormattedStringToJson(String formattedString) {
-  Map<int, Map<String, List<String>>> mapOfAllTags = new Map();
+  Map<int, Map<String, Map<String, List<String>>>> mapOfAllTags = new Map();
   Map<int, int> numberOfTagsByPositionNumber = new Map();
   Map<String, int> numberOfTagsByContainerCode = new Map();
 
@@ -438,59 +569,69 @@ TagInformation convertFormattedStringToJson(String formattedString) {
       // print("/////////////////////////////${j}////////////////////////");
 
       String containerCode = containerCodesAndTagNumbers[j].substring(0, containerCodesAndTagNumbers[j].indexOf("="));
-      mapOfAllTags[currentPosition][containerCode] = [];
+      mapOfAllTags[currentPosition][containerCode] = new Map();
       numberOfTagsByContainerCode[containerCode] = 0;
       List<String> stemAndTagNumbers = containerCodesAndTagNumbers[j].substring(containerCodesAndTagNumbers[j].indexOf("=") + 1).split(":");
       String stem = stemOfStems + stemAndTagNumbers[0];
-      String oddTagNumbers = stemAndTagNumbers[1];
-      String tagNumbersRange = convertToNormalRange(oddTagNumbers);
+      List<String> binAndTNumbersList = stemAndTagNumbers[1].split("''");
 
-      List<String> compressedTagNumbers = tagNumbersRange.split(",");
-      List<String> tagNumbers = [];
-      for (var k = 0; k < compressedTagNumbers.length; ++k) {
-        if (compressedTagNumbers[k].contains("_")) {
-          String startNumber = compressedTagNumbers[k].split("_")[0];
-          String endNumber = compressedTagNumbers[k].split("_")[1];
+      binAndTNumbersList.removeWhere((element) => element == "");
 
-          int l = compressedTagNumbers[k].split("_")[1].length;
+      /// todo  niyaz hast ya na?
+      print(binAndTNumbersList);
 
-          int s = int.parse(startNumber);
-          int e = int.parse(endNumber);
+      for (var k = 0; k < binAndTNumbersList.length; ++k) {
+        var bAndTN = binAndTNumbersList[k];
+        String bin = bAndTN.substring(0, bAndTN.lastIndexOf(">"));
 
-          for (var m = s; m <= e; ++m) {
-            String mString = m.toString().padLeft(l, "0");
-            tagNumbers.add(mString);
-            // stdout.write(mString+",");
+        String oddTagNumbers = bAndTN.substring(bAndTN.lastIndexOf(">") + 1);
+        String tagNumbersRange = convertToNormalRange(oddTagNumbers);
+        List<String> compressedTagNumbers = tagNumbersRange.split(",");
+        print("bin: "+ bin + " tagnumbers: "+ compressedTagNumbers.toString());
+        List<String> tagNumbers = [];
+        for (var l = 0; l < compressedTagNumbers.length; ++l) {
+          if (compressedTagNumbers[l].contains("_")) {
+            String startNumber = compressedTagNumbers[l].split("_")[0];
+            String endNumber = compressedTagNumbers[l].split("_")[1];
+
+            int lenght = compressedTagNumbers[l].split("_")[1].length;
+
+            int s = int.parse(startNumber);
+            int e = int.parse(endNumber);
+
+            for (var m = s; m <= e; ++m) {
+              String mString = m.toString().padLeft(lenght, "0");
+              tagNumbers.add(mString);
+              // stdout.write(mString+",");
+            }
+          } else {
+            tagNumbers.add(compressedTagNumbers[l]);
+            // stdout.write(compressedTagNumbers[k]+",");
           }
-        } else {
-          tagNumbers.add(compressedTagNumbers[k]);
-          // stdout.write(compressedTagNumbers[k]+",");
+        }
+        mapOfAllTags[currentPosition][containerCode][bin] = [];
+        for (var l = 0; l < tagNumbers.length; ++l) {
+          if (!tagNumbers[l].startsWith("-")) {
+            tagNumbers[l] = stem + tagNumbers[l];
+          }
+          // print("currentPosition: " + currentPosition.toString());
+          // print("tagNumbers: " + tagNumbers[k]);
+          // print("containerCode: " + containerCode);
+          // print("//////////");
+          mapOfAllTags[currentPosition][containerCode][bin].add(tagNumbers[l]);
+          numberOfTagsByPositionNumber[currentPosition]++;
+          numberOfTagsByContainerCode[containerCode]++;
+          //
+          TagList tagList = TagList(
+            currentPosition: currentPosition,
+            tagNumber: tagNumbers[l],
+            tagPositions: [
+              containerCode == "!" ? TagPosition(containerCode: null) : TagPosition(containerCode: containerCode),
+            ],
+          );
+          tagInformation.tagList.add(tagList);
         }
       }
-      // print(tagNumbers);
-      for (var k = 0; k < tagNumbers.length; ++k) {
-        if (!tagNumbers[k].startsWith("-")) {
-          tagNumbers[k] = stem + tagNumbers[k];
-        }
-        // print("currentPosition: " + currentPosition.toString());
-        // print("tagNumbers: " + tagNumbers[k]);
-        // print("containerCode: " + containerCode);
-        // print("//////////");
-        mapOfAllTags[currentPosition][containerCode].add(tagNumbers[k]);
-        numberOfTagsByPositionNumber[currentPosition]++;
-        numberOfTagsByContainerCode[containerCode]++;
-
-        TagList tagList = TagList(
-          currentPosition: currentPosition,
-          tagNumber: tagNumbers[k],
-          tagPositions: [
-            containerCode == "!" ? TagPosition(containerCode: null) : TagPosition(containerCode: containerCode),
-          ],
-        );
-        tagInformation.tagList.add(tagList);
-      }
-
-      // print("tagNumbers after adding stem: " + tagNumbers.toString());
     }
   }
 
@@ -602,25 +743,22 @@ String convertToNormalRange(String oddTagNumbers) {
 }
 
 main() async {
-  var jsonInput = await File("je5.json").readAsString();
+  var jsonInput = await File("jsonFiles\\je6.json").readAsString();
   TagInformation tagInformation = tagInformationFromJson(jsonInput);
   // // print(jsonDecode(jsonInput));
   //
   // String formattedString = convertJsonToFormattedString(tagInformation);
   // print(formattedString);
-  // //
+
+  // print(convertJsonToFormattedString4(tagInformation));
   // print("****************************************");
-  //
-  // print(convertJsonToFormattedString2(tagInformation));
-  // //
+  // print(convertJsonToFormattedString3(tagInformation));
   // print("****************************************");
-  // //
-  print(convertJsonToFormattedString3(tagInformation));
-  print("****************************************");
-  TagInformation convertedTagInformation = convertFormattedStringToJson(convertJsonToFormattedString3(tagInformation));
+  // print(r2);
+  TagInformation convertedTagInformation = convertFormattedStringToJson(convertJsonToFormattedString4(tagInformation));
   // // print(jsonEncode(convertedTagInformation.toJson()));
   // print("****************************************");
-  validation(convertedTagInformation, tagInformation);
+  // validation(convertedTagInformation, tagInformation);
 }
 
 void validation(TagInformation convertedTagInformation, TagInformation tagInformation) {
@@ -632,7 +770,7 @@ void validation(TagInformation convertedTagInformation, TagInformation tagInform
       // print("here");
       if (tag1.tagNumber == tag2.tagNumber) {
         if (tag1.currentPosition == tag2.currentPosition) {
-          if (tag1.tagPositions[0].containerCode == null) {
+          if (tag1.tagPositions[0].containerCode == null && tag2.tagPositions[0].containerCode == "") {
             numberOfEquals++;
             print("${numberOfEquals}- Equal");
           } else if (tag1.tagPositions[0].containerCode == tag2.tagPositions[0].containerCode) {

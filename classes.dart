@@ -51,15 +51,19 @@ class TagList {
 class TagPosition {
   TagPosition({
     this.containerCode,
+    this.bin,
   });
 
   String containerCode;
+  String bin;
 
   factory TagPosition.fromJson(Map<String, dynamic> json) => TagPosition(
         containerCode: json["ContainerCode"] == null ? null : json["ContainerCode"],
+        bin: json["Bin"] == null ? null : json["Bin"],
       );
 
   Map<String, dynamic> toJson() => {
         "ContainerCode": containerCode == null ? null : containerCode,
+        "Bin": bin == null ? null : bin,
       };
 }
