@@ -29,7 +29,9 @@ String removeCommonWithLastNumber(String lastNumber, String range) {
     String start = range.split("_")[0];
     String end = range.split("_")[1];
     start = start.replaceFirst(findStem([lastNumber, start]), "");
-    end = end.replaceFirst(findStem([start, end]), "");
+    if(start.length == end.length) {
+      end = end.replaceFirst(findStem([start, end]), "");
+    }
     result = start + "_" + end;
   } else {
     result = range.replaceFirst(findStem([lastNumber, range]), "");
@@ -196,26 +198,7 @@ String convertJsonToFormattedString(TagInformation tagInformation) {
 }
 
 String convertJsonToFormattedString2(TagInformation tagInformation) {
-  Map<int, Map<String, List<String>>> compressedInformation = new Map();
-  for (var i = 0; i < tagInformation.tagList.length; ++i) {
-    String tagNumber = tagInformation.tagList[i].tagNumber;
-    int currentPosition = tagInformation.tagList[i].currentPosition;
-    String containerCode = tagInformation.tagList[i].tagPositions[0].containerCode;
-
-    if (containerCode == "") containerCode = "!";
-
-    if (compressedInformation.containsKey(currentPosition)) {
-      if (compressedInformation[currentPosition].containsKey(containerCode)) {
-        compressedInformation[currentPosition][containerCode].add(tagNumber);
-      } else {
-        compressedInformation[currentPosition][containerCode] = List<String>.from([tagNumber]);
-      }
-    } else {
-      Map<String, List<String>> temp = new Map();
-      temp[containerCode] = List<String>.from([tagNumber]);
-      compressedInformation[currentPosition] = temp;
-    }
-  }
+  Map<int, Map<String, List<String>>> compressedInformation = createInformationMap(tagInformation);
 
   String compressedString = "";
   // print("////////////////////////////////////////////");
@@ -242,55 +225,7 @@ String convertJsonToFormattedString2(TagInformation tagInformation) {
       v2.sort();
 
       String tagNumbersString = "";
-      if (v2.length > 1) {
-        List<String> numbersInRow = [];
-        List<int> numbers = v2.map(int.parse).toList();
-        int startNumberIndex = 0, endNumberIndex = 0;
-        String lastNumber = v2[startNumberIndex];
-        bool addingFirstRange = true;
-        for (var i = 1; i < numbers.length; ++i) {
-          if (numbers[i] - 1 == numbers[endNumberIndex]) {
-            endNumberIndex = i;
-          } else {
-            String combinedNumbers = "";
-            if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
-              combinedNumbers = v2[startNumberIndex];
-            } else {
-              String stem = findStem([v2[startNumberIndex], v2[endNumberIndex]]);
-              String endNumberString = v2[endNumberIndex].toString().replaceFirst(stem, "");
-              combinedNumbers = v2[startNumberIndex] + "_" + endNumberString;
-            }
-            if (addingFirstRange) {
-              numbersInRow.add(combinedNumbers);
-              addingFirstRange = false;
-            } else {
-              numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
-            }
-            lastNumber = v2[endNumberIndex];
-            startNumberIndex = endNumberIndex = i;
-          }
-          if (i == numbers.length - 1) {
-            String combinedNumbers = "";
-            if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
-              combinedNumbers = v2[startNumberIndex];
-            } else {
-              String stem = findStem([v2[startNumberIndex], v2[endNumberIndex]]);
-              String endNumberString = v2[endNumberIndex].toString().replaceFirst(stem, "");
-              combinedNumbers = v2[startNumberIndex] + "_" + endNumberString;
-            }
-            if (addingFirstRange) {
-              numbersInRow.add(combinedNumbers);
-              addingFirstRange = false;
-            } else {
-              numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
-            }
-            lastNumber = v2[endNumberIndex];
-          }
-        }
-        tagNumbersString = numbersInRow.join(',');
-      } else {
-        tagNumbersString = v2.join(',');
-      }
+      tagNumbersString = createTNRanges(v2, tagNumbersString);
       containerCodesString += "{" + (k2 + "=" + stem + ":" + tagNumbersString);
     });
 
@@ -304,36 +239,13 @@ String convertJsonToFormattedString2(TagInformation tagInformation) {
 }
 
 String convertJsonToFormattedString3(TagInformation tagInformation) {
-  Map<int, Map<String, List<String>>> compressedInformation = new Map();
-  for (var i = 0; i < tagInformation.tagList.length; ++i) {
-    String tagNumber = tagInformation.tagList[i].tagNumber;
-    int currentPosition = tagInformation.tagList[i].currentPosition;
-    String containerCode = tagInformation.tagList[i].tagPositions[0].containerCode;
-
-    if (containerCode == "") containerCode = "!";
-
-    if (compressedInformation.containsKey(currentPosition)) {
-      if (compressedInformation[currentPosition].containsKey(containerCode)) {
-        compressedInformation[currentPosition][containerCode].add(tagNumber);
-      } else {
-        compressedInformation[currentPosition][containerCode] = List<String>.from([tagNumber]);
-      }
-    } else {
-      Map<String, List<String>> temp = new Map();
-      temp[containerCode] = List<String>.from([tagNumber]);
-      compressedInformation[currentPosition] = temp;
-    }
-  }
-
+  Map<int, Map<String, List<String>>> compressedInformation = createInformationMap(tagInformation);
   String compressedString = "";
-  // print("////////////////////////////////////////////");
   List<String> listOfStems = [];
   compressedInformation.forEach((k, v) {
     String containerCodesString = "";
-
     compressedInformation[k].forEach((k2, v2) {
       List<String> tagNumbers = [];
-
       for (var i = 0; i < v2.length; ++i) {
         tagNumbers.add(v2[i]);
       }
@@ -348,57 +260,8 @@ String convertJsonToFormattedString3(TagInformation tagInformation) {
       }
 
       v2.sort();
-
       String tagNumbersString = "";
-      if (v2.length > 1) {
-        List<String> numbersInRow = [];
-        List<int> numbers = v2.map(int.parse).toList();
-        int startNumberIndex = 0, endNumberIndex = 0;
-        String lastNumber = v2[startNumberIndex];
-        bool addingFirstRange = true;
-        for (var i = 1; i < numbers.length; ++i) {
-          if (numbers[i] - 1 == numbers[endNumberIndex]) {
-            endNumberIndex = i;
-          } else {
-            String combinedNumbers = "";
-            if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
-              combinedNumbers = v2[startNumberIndex];
-            } else {
-              String stem = findStem([v2[startNumberIndex], v2[endNumberIndex]]);
-              String endNumberString = v2[endNumberIndex].toString().replaceFirst(stem, "");
-              combinedNumbers = v2[startNumberIndex] + "_" + endNumberString;
-            }
-            if (addingFirstRange) {
-              numbersInRow.add(combinedNumbers);
-              addingFirstRange = false;
-            } else {
-              numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
-            }
-            lastNumber = v2[endNumberIndex];
-            startNumberIndex = endNumberIndex = i;
-          }
-          if (i == numbers.length - 1) {
-            String combinedNumbers = "";
-            if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
-              combinedNumbers = v2[startNumberIndex];
-            } else {
-              String stem = findStem([v2[startNumberIndex], v2[endNumberIndex]]);
-              String endNumberString = v2[endNumberIndex].toString().replaceFirst(stem, "");
-              combinedNumbers = v2[startNumberIndex] + "_" + endNumberString;
-            }
-            if (addingFirstRange) {
-              numbersInRow.add(combinedNumbers);
-              addingFirstRange = false;
-            } else {
-              numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
-            }
-            lastNumber = v2[endNumberIndex];
-          }
-        }
-        tagNumbersString = numbersInRow.join(',');
-      } else {
-        tagNumbersString = v2.join(',');
-      }
+      tagNumbersString = createTNRanges(v2, tagNumbersString);
       tagNumbersString = oddFunction(tagNumbersString);
       containerCodesString += "{" + (k2 + "=" + stem + ":" + tagNumbersString);
     });
@@ -413,25 +276,25 @@ String convertJsonToFormattedString3(TagInformation tagInformation) {
 }
 
 String convertJsonToFormattedString4(TagInformation tagInformation) {
-  Map<int, Map<String, Map<String, List<String>>>> compressedInformation = createInformationMap(tagInformation);
-
+  Map<int, Map<String, Map<String, List<String>>>> compressedInformation = createInformationMap4(tagInformation);
   String compressedString = "";
   List<String> listOfStems = [];
   compressedInformation.forEach((k, v) {
+    // print("k: " + k.toString() + " v: " + v.toString());
     String containerCodesString = "";
-
     compressedInformation[k].forEach((k2, v2) {
-      List<String> ccStringList = [];
-      String stem = "";
-      // print(k2);
+      // print("k2: " + k2.toString() + " v2: " + v2.toString());
+      List<String> tagNumbers = [];
       compressedInformation[k][k2].forEach((k3, v3) {
-        List<String> tagNumbers = [];
-
+        // print("k3: " + k3.toString() + " v3: " + v3.toString());
         for (var i = 0; i < v3.length; ++i) {
           tagNumbers.add(v3[i]);
         }
-        stem = findStem(tagNumbers);
-        listOfStems.add(stem);
+      });
+      String stem = findStem(tagNumbers);
+      listOfStems.add(stem);
+      List<String> tagsByBin = [];
+      compressedInformation[k][k2].forEach((k3, v3) {
         for (var i = 0; i < v3.length; ++i) {
           if (v3[i].startsWith(stem)) {
             v3[i] = v3[i].replaceFirst(stem, "");
@@ -439,67 +302,16 @@ String convertJsonToFormattedString4(TagInformation tagInformation) {
             v3[i] = "-" + v3[i];
           }
         }
-
         v3.sort();
-
         String tagNumbersString = "";
-        if (v3.length > 1) {
-          List<String> numbersInRow = [];
-          List<int> numbers = v3.map(int.parse).toList();
-          int startNumberIndex = 0, endNumberIndex = 0;
-          String lastNumber = v3[startNumberIndex];
-          bool addingFirstRange = true;
-          for (var i = 1; i < numbers.length; ++i) {
-            if (numbers[i] - 1 == numbers[endNumberIndex]) {
-              endNumberIndex = i;
-            } else {
-              String combinedNumbers = "";
-              if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
-                combinedNumbers = v3[startNumberIndex];
-              } else {
-                String stem = findStem([v3[startNumberIndex], v3[endNumberIndex]]);
-                String endNumberString = v3[endNumberIndex].toString().replaceFirst(stem, "");
-                combinedNumbers = v3[startNumberIndex] + "_" + endNumberString;
-              }
-              if (addingFirstRange) {
-                numbersInRow.add(combinedNumbers);
-                addingFirstRange = false;
-              } else {
-                numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
-              }
-              lastNumber = v3[endNumberIndex];
-              startNumberIndex = endNumberIndex = i;
-            }
-            if (i == numbers.length - 1) {
-              String combinedNumbers = "";
-              if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
-                combinedNumbers = v3[startNumberIndex];
-              } else {
-                String stem = findStem([v3[startNumberIndex], v3[endNumberIndex]]);
-                String endNumberString = v3[endNumberIndex].toString().replaceFirst(stem, "");
-                combinedNumbers = v3[startNumberIndex] + "_" + endNumberString;
-              }
-              if (addingFirstRange) {
-                numbersInRow.add(combinedNumbers);
-                addingFirstRange = false;
-              } else {
-                numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
-              }
-              lastNumber = v3[endNumberIndex];
-            }
-          }
-          tagNumbersString = numbersInRow.join(',');
-        } else {
-          tagNumbersString = v3.join(',');
-        }
+        tagNumbersString = createTNRanges(v3, tagNumbersString);
         tagNumbersString = oddFunction(tagNumbersString);
-        // print(tagNumbersString);
-
-        ccStringList.add(k3 + ">" + tagNumbersString);
+        if(tagNumbersString == "092a110_") print(v3);
+        tagsByBin.add(k3 + ">" + tagNumbersString);
       });
-
-      containerCodesString += "{" + (k2 + "=" + stem + ":" + ccStringList.join("''"));
+      containerCodesString += "{" + (k2 + "=" + stem + ":" + tagsByBin.join("*"));
     });
+    // print("////////");
     compressedString += ("}" + (k.toString() + "=" + containerCodesString));
   });
   String stemOfStems = findStem(listOfStems);
@@ -509,7 +321,84 @@ String convertJsonToFormattedString4(TagInformation tagInformation) {
   return compressedString;
 }
 
-Map<int, Map<String, Map<String, List<String>>>> createInformationMap(TagInformation tagInformation) {
+String createTNRanges(List<String> v2, String tagNumbersString) {
+  if (v2.length > 1) {
+    List<String> numbersInRow = [];
+    List<int> numbers = v2.map(int.parse).toList();
+    int startNumberIndex = 0, endNumberIndex = 0;
+    String lastNumber = v2[startNumberIndex];
+    bool addingFirstRange = true;
+    for (var i = 1; i < numbers.length; ++i) {
+      if (numbers[i] - 1 == numbers[endNumberIndex]) {
+        endNumberIndex = i;
+      } else {
+        String combinedNumbers = "";
+        if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
+          combinedNumbers = v2[startNumberIndex];
+        } else {
+          String stem = findStem([v2[startNumberIndex], v2[endNumberIndex]]);
+          String endNumberString = v2[endNumberIndex].toString().replaceFirst(stem, "");
+          combinedNumbers = v2[startNumberIndex] + "_" + endNumberString;
+        }
+        if (addingFirstRange) {
+          numbersInRow.add(combinedNumbers);
+          addingFirstRange = false;
+        } else {
+          numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
+        }
+        lastNumber = v2[endNumberIndex];
+        startNumberIndex = endNumberIndex = i;
+      }
+      if (i == numbers.length - 1) {
+        String combinedNumbers = "";
+        if (numbers[startNumberIndex] == numbers[endNumberIndex]) {
+          combinedNumbers = v2[startNumberIndex];
+        } else {
+          String stem = findStem([v2[startNumberIndex], v2[endNumberIndex]]);
+          String endNumberString = v2[endNumberIndex].toString().replaceFirst(stem, "");
+          combinedNumbers = v2[startNumberIndex] + "_" + endNumberString;
+        }
+        if (addingFirstRange) {
+          numbersInRow.add(combinedNumbers);
+          addingFirstRange = false;
+        } else {
+          numbersInRow.add(removeCommonWithLastNumber(lastNumber, combinedNumbers));
+        }
+        lastNumber = v2[endNumberIndex];
+      }
+    }
+    tagNumbersString = numbersInRow.join(',');
+  } else {
+    tagNumbersString = v2.join(',');
+  }
+  return tagNumbersString;
+}
+
+Map<int, Map<String, List<String>>> createInformationMap(TagInformation tagInformation) {
+  Map<int, Map<String, List<String>>> compressedInformation = new Map();
+  for (var i = 0; i < tagInformation.tagList.length; ++i) {
+    String tagNumber = tagInformation.tagList[i].tagNumber;
+    int currentPosition = tagInformation.tagList[i].currentPosition;
+    String containerCode = tagInformation.tagList[i].tagPositions[0].containerCode;
+
+    if (containerCode == "") containerCode = "!";
+
+    if (compressedInformation.containsKey(currentPosition)) {
+      if (compressedInformation[currentPosition].containsKey(containerCode)) {
+        compressedInformation[currentPosition][containerCode].add(tagNumber);
+      } else {
+        compressedInformation[currentPosition][containerCode] = List<String>.from([tagNumber]);
+      }
+    } else {
+      Map<String, List<String>> temp = new Map();
+      temp[containerCode] = List<String>.from([tagNumber]);
+      compressedInformation[currentPosition] = temp;
+    }
+  }
+  return compressedInformation;
+}
+
+Map<int, Map<String, Map<String, List<String>>>> createInformationMap4(TagInformation tagInformation) {
   Map<int, Map<String, Map<String, List<String>>>> compressedInformation = new Map();
   for (var i = 0; i < tagInformation.tagList.length; ++i) {
     String tagNumber = tagInformation.tagList[i].tagNumber;
@@ -541,107 +430,6 @@ Map<int, Map<String, Map<String, List<String>>>> createInformationMap(TagInforma
     }
   }
   return compressedInformation;
-}
-
-TagInformation convertFormattedStringToJson(String formattedString) {
-  Map<int, Map<String, Map<String, List<String>>>> mapOfAllTags = new Map();
-  Map<int, int> numberOfTagsByPositionNumber = new Map();
-  Map<String, int> numberOfTagsByContainerCode = new Map();
-
-  List<String> separatedByCurrentPosition = formattedString.split("}");
-  int numberOfTags = int.parse(separatedByCurrentPosition[0].split(",")[0]);
-  String stemOfStems = separatedByCurrentPosition[0].split(",")[1];
-
-  separatedByCurrentPosition.removeWhere((element) => element == "");
-
-  TagInformation tagInformation = TagInformation();
-  tagInformation.tagList = [];
-  for (var i = 1; i < separatedByCurrentPosition.length; ++i) {
-    // print("*************************${i}*****************************");
-    int currentPosition = int.parse(separatedByCurrentPosition[i].substring(0, separatedByCurrentPosition[i].indexOf("=")));
-    mapOfAllTags[currentPosition] = new Map();
-    numberOfTagsByPositionNumber[currentPosition] = 0;
-    // print("currentPosition: " + currentPosition.toString());
-    List<String> containerCodesAndTagNumbers = separatedByCurrentPosition[i].substring(separatedByCurrentPosition[i].indexOf("=") + 1).split("{");
-    containerCodesAndTagNumbers.removeWhere((element) => element == "");
-
-    for (var j = 0; j < containerCodesAndTagNumbers.length; ++j) {
-      // print("/////////////////////////////${j}////////////////////////");
-
-      String containerCode = containerCodesAndTagNumbers[j].substring(0, containerCodesAndTagNumbers[j].indexOf("="));
-      mapOfAllTags[currentPosition][containerCode] = new Map();
-      numberOfTagsByContainerCode[containerCode] = 0;
-      List<String> stemAndTagNumbers = containerCodesAndTagNumbers[j].substring(containerCodesAndTagNumbers[j].indexOf("=") + 1).split(":");
-      String stem = stemOfStems + stemAndTagNumbers[0];
-      List<String> binAndTNumbersList = stemAndTagNumbers[1].split("''");
-
-      binAndTNumbersList.removeWhere((element) => element == "");
-
-      /// todo  niyaz hast ya na?
-      print(binAndTNumbersList);
-
-      for (var k = 0; k < binAndTNumbersList.length; ++k) {
-        var bAndTN = binAndTNumbersList[k];
-        String bin = bAndTN.substring(0, bAndTN.lastIndexOf(">"));
-
-        String oddTagNumbers = bAndTN.substring(bAndTN.lastIndexOf(">") + 1);
-        String tagNumbersRange = convertToNormalRange(oddTagNumbers);
-        List<String> compressedTagNumbers = tagNumbersRange.split(",");
-        print("bin: "+ bin + " tagnumbers: "+ compressedTagNumbers.toString());
-        List<String> tagNumbers = [];
-        for (var l = 0; l < compressedTagNumbers.length; ++l) {
-          if (compressedTagNumbers[l].contains("_")) {
-            String startNumber = compressedTagNumbers[l].split("_")[0];
-            String endNumber = compressedTagNumbers[l].split("_")[1];
-
-            int lenght = compressedTagNumbers[l].split("_")[1].length;
-
-            int s = int.parse(startNumber);
-            int e = int.parse(endNumber);
-
-            for (var m = s; m <= e; ++m) {
-              String mString = m.toString().padLeft(lenght, "0");
-              tagNumbers.add(mString);
-              // stdout.write(mString+",");
-            }
-          } else {
-            tagNumbers.add(compressedTagNumbers[l]);
-            // stdout.write(compressedTagNumbers[k]+",");
-          }
-        }
-        mapOfAllTags[currentPosition][containerCode][bin] = [];
-        for (var l = 0; l < tagNumbers.length; ++l) {
-          if (!tagNumbers[l].startsWith("-")) {
-            tagNumbers[l] = stem + tagNumbers[l];
-          }
-          // print("currentPosition: " + currentPosition.toString());
-          // print("tagNumbers: " + tagNumbers[k]);
-          // print("containerCode: " + containerCode);
-          // print("//////////");
-          mapOfAllTags[currentPosition][containerCode][bin].add(tagNumbers[l]);
-          numberOfTagsByPositionNumber[currentPosition]++;
-          numberOfTagsByContainerCode[containerCode]++;
-          //
-          TagList tagList = TagList(
-            currentPosition: currentPosition,
-            tagNumber: tagNumbers[l],
-            tagPositions: [
-              containerCode == "!" ? TagPosition(containerCode: null) : TagPosition(containerCode: containerCode),
-            ],
-          );
-          tagInformation.tagList.add(tagList);
-        }
-      }
-    }
-  }
-
-  print("Total  number of tags: ${numberOfTags}");
-  print("////////////////////////////////////////");
-  numberOfTagsByPositionNumber.forEach((k, v) => print("Position number : $k    ==>    Number of tags : $v"));
-  print("////////////////////////////////////////");
-  numberOfTagsByContainerCode.forEach((k, v) => print("Container Code : $k    ==>    Number of tags : $v"));
-
-  return tagInformation;
 }
 
 String convertToNormalRange(String oddTagNumbers) {
@@ -742,23 +530,202 @@ String convertToNormalRange(String oddTagNumbers) {
   return tagNumbersRange;
 }
 
+TagInformation convertFormattedStringToJson(String formattedString) {
+  Map<int, Map<String, List<String>>> mapOfAllTags = new Map();
+  Map<int, int> numberOfTagsByPositionNumber = new Map();
+  Map<String, int> numberOfTagsByContainerCode = new Map();
+
+  List<String> separatedByCurrentPosition = formattedString.split("}");
+  int numberOfTags = int.parse(separatedByCurrentPosition[0].split(",")[0]);
+  String stemOfStems = separatedByCurrentPosition[0].split(",")[1];
+
+  separatedByCurrentPosition.removeWhere((element) => element == "");
+
+  TagInformation tagInformation = TagInformation();
+  tagInformation.tagList = [];
+  for (var i = 1; i < separatedByCurrentPosition.length; ++i) {
+    // print("*************************${i}*****************************");
+    int currentPosition = int.parse(separatedByCurrentPosition[i].substring(0, separatedByCurrentPosition[i].indexOf("=")));
+    mapOfAllTags[currentPosition] = new Map();
+    numberOfTagsByPositionNumber[currentPosition] = 0;
+    // print("currentPosition: " + currentPosition.toString());
+    List<String> containerCodesAndTagNumbers = separatedByCurrentPosition[i].substring(separatedByCurrentPosition[i].indexOf("=") + 1).split("{");
+    containerCodesAndTagNumbers.removeWhere((element) => element == "");
+
+    for (var j = 0; j < containerCodesAndTagNumbers.length; ++j) {
+      String containerCode = containerCodesAndTagNumbers[j].substring(0, containerCodesAndTagNumbers[j].indexOf("="));
+      mapOfAllTags[currentPosition][containerCode] = [];
+      numberOfTagsByContainerCode[containerCode] = 0;
+      List<String> stemAndTagNumbers = containerCodesAndTagNumbers[j].substring(containerCodesAndTagNumbers[j].indexOf("=") + 1).split(":");
+      String stem = stemOfStems + stemAndTagNumbers[0];
+      String oddTagNumbers = stemAndTagNumbers[1];
+      String tagNumbersRange = convertToNormalRange(oddTagNumbers);
+      List<String> compressedTagNumbers = tagNumbersRange.split(",");
+      List<String> tagNumbers = [];
+      createTagInformation(compressedTagNumbers, tagNumbers, stem, mapOfAllTags, currentPosition, containerCode, numberOfTagsByPositionNumber, numberOfTagsByContainerCode, tagInformation);
+    }
+  }
+  printSummary(numberOfTags, numberOfTagsByPositionNumber, numberOfTagsByContainerCode);
+  return tagInformation;
+}
+
+TagInformation convertFormattedStringToJson4(String formattedString) {
+  Map<int, Map<String, Map<String, List<String>>>> mapOfAllTags = new Map();
+  Map<int, int> numberOfTagsByPositionNumber = new Map();
+  Map<String, int> numberOfTagsByContainerCode = new Map();
+
+  List<String> separatedByCurrentPosition = formattedString.split("}");
+  int numberOfTags = int.parse(separatedByCurrentPosition[0].split(",")[0]);
+  String stemOfStems = separatedByCurrentPosition[0].split(",")[1];
+
+  separatedByCurrentPosition.removeWhere((element) => element == "");
+
+  TagInformation tagInformation = TagInformation();
+  tagInformation.tagList = [];
+  for (var i = 1; i < separatedByCurrentPosition.length; ++i) {
+    // print("*************************${i}*****************************");
+    int currentPosition = int.parse(separatedByCurrentPosition[i].substring(0, separatedByCurrentPosition[i].indexOf("=")));
+    mapOfAllTags[currentPosition] = new Map();
+    numberOfTagsByPositionNumber[currentPosition] = 0;
+    // print("currentPosition: " + currentPosition.toString());
+    List<String> containerCodesAndTagNumbers = separatedByCurrentPosition[i].substring(separatedByCurrentPosition[i].indexOf("=") + 1).split("{");
+    containerCodesAndTagNumbers.removeWhere((element) => element == "");
+
+    for (var j = 0; j < containerCodesAndTagNumbers.length; ++j) {
+      String containerCode = containerCodesAndTagNumbers[j].substring(0, containerCodesAndTagNumbers[j].indexOf("="));
+      mapOfAllTags[currentPosition][containerCode] = new Map();
+      numberOfTagsByContainerCode[containerCode] = 0;
+      List<String> stemAndTagNumbers = containerCodesAndTagNumbers[j].substring(containerCodesAndTagNumbers[j].indexOf("=") + 1).split(":");
+      String stem = stemOfStems + stemAndTagNumbers[0];
+
+      List<String> binAndTNumbers = stemAndTagNumbers[1].split("*");
+      for (var k = 0; k < binAndTNumbers.length; ++k) {
+        var bATN = binAndTNumbers[k];
+        String bin = bATN.substring(0, bATN.lastIndexOf(">"));
+        String oddTagNumbers = bATN.substring(bATN.lastIndexOf(">") + 1);
+        String tagNumbersRange = convertToNormalRange(oddTagNumbers);
+        List<String> compressedTagNumbers = tagNumbersRange.split(",");
+        createTagInformation2(compressedTagNumbers, stem, currentPosition, containerCode, numberOfTagsByPositionNumber, numberOfTagsByContainerCode, tagInformation);
+      }
+    }
+  }
+  printSummary(numberOfTags, numberOfTagsByPositionNumber, numberOfTagsByContainerCode);
+  return tagInformation;
+}
+
+void printSummary(int numberOfTags, Map<int, int> numberOfTagsByPositionNumber, Map<String, int> numberOfTagsByContainerCode) {
+  print("Total  number of tags: ${numberOfTags}");
+  print("////////////////////////////////////////");
+  numberOfTagsByPositionNumber.forEach((k, v) => print("Position number : $k    ==>    Number of tags : $v"));
+  print("////////////////////////////////////////");
+  numberOfTagsByContainerCode.forEach((k, v) => print("Container Code : $k    ==>    Number of tags : $v"));
+}
+
+void createTagInformation(List<String> compressedTagNumbers, List<String> tagNumbers, String stem, Map<int, Map<String, List<String>>> mapOfAllTags, int currentPosition, String containerCode,
+    Map<int, int> numberOfTagsByPositionNumber, Map<String, int> numberOfTagsByContainerCode, TagInformation tagInformation) {
+  for (var k = 0; k < compressedTagNumbers.length; ++k) {
+    if (compressedTagNumbers[k].contains("_")) {
+      String startNumber = compressedTagNumbers[k].split("_")[0];
+      String endNumber = compressedTagNumbers[k].split("_")[1];
+
+      int l = compressedTagNumbers[k].split("_")[1].length;
+
+      int s = int.parse(startNumber);
+      int e = int.parse(endNumber);
+
+      for (var m = s; m <= e; ++m) {
+        String mString = m.toString().padLeft(l, "0");
+        tagNumbers.add(mString);
+        // stdout.write(mString+",");
+      }
+    } else {
+      tagNumbers.add(compressedTagNumbers[k]);
+      // stdout.write(compressedTagNumbers[k]+",");
+    }
+  }
+  for (var k = 0; k < tagNumbers.length; ++k) {
+    if (!tagNumbers[k].startsWith("-")) {
+      tagNumbers[k] = stem + tagNumbers[k];
+    }
+    // print("currentPosition: " + currentPosition.toString());
+    // print("tagNumbers: " + tagNumbers[k]);
+    // print("containerCode: " + containerCode);
+    // print("//////////");
+    mapOfAllTags[currentPosition][containerCode].add(tagNumbers[k]);
+    numberOfTagsByPositionNumber[currentPosition]++;
+    numberOfTagsByContainerCode[containerCode]++;
+
+    TagList tagList = TagList(
+      currentPosition: currentPosition,
+      tagNumber: tagNumbers[k],
+      tagPositions: [
+        containerCode == "!" ? TagPosition(containerCode: null) : TagPosition(containerCode: containerCode),
+      ],
+    );
+    tagInformation.tagList.add(tagList);
+  }
+}
+
+
+void createTagInformation2(List<String> compressedTagNumbers,  String stem, int currentPosition, String containerCode,
+    Map<int, int> numberOfTagsByPositionNumber, Map<String, int> numberOfTagsByContainerCode, TagInformation tagInformation) {
+  List<String> tagNumbers = [];
+  for (var k = 0; k < compressedTagNumbers.length; ++k) {
+    if (compressedTagNumbers[k].contains("_")) {
+      String startNumber = compressedTagNumbers[k].split("_")[0];
+      String endNumber = compressedTagNumbers[k].split("_")[1];
+
+      int l = compressedTagNumbers[k].split("_")[1].length;
+
+      int s = int.parse(startNumber);
+      int e = int.parse(endNumber);
+
+      for (var m = s; m <= e; ++m) {
+        String mString = m.toString().padLeft(l, "0");
+        tagNumbers.add(mString);
+        // stdout.write(mString+",");
+      }
+    } else {
+      tagNumbers.add(compressedTagNumbers[k]);
+      // stdout.write(compressedTagNumbers[k]+",");
+    }
+  }
+  for (var k = 0; k < tagNumbers.length; ++k) {
+    if (!tagNumbers[k].startsWith("-")) {
+      tagNumbers[k] = stem + tagNumbers[k];
+    }
+    // print("currentPosition: " + currentPosition.toString());
+    // print("tagNumbers: " + tagNumbers[k]);
+    // print("containerCode: " + containerCode);
+    // print("//////////");
+    // mapOfAllTags[currentPosition][containerCode].add(tagNumbers[k]);
+    numberOfTagsByPositionNumber[currentPosition]++;
+    numberOfTagsByContainerCode[containerCode]++;
+
+    TagList tagList = TagList(
+      currentPosition: currentPosition,
+      tagNumber: tagNumbers[k],
+      tagPositions: [
+        containerCode == "!" ? TagPosition(containerCode: null) : TagPosition(containerCode: containerCode),
+      ],
+    );
+    tagInformation.tagList.add(tagList);
+  }
+}
+
 main() async {
   var jsonInput = await File("jsonFiles\\je6.json").readAsString();
   TagInformation tagInformation = tagInformationFromJson(jsonInput);
-  // // print(jsonDecode(jsonInput));
-  //
-  // String formattedString = convertJsonToFormattedString(tagInformation);
-  // print(formattedString);
 
-  // print(convertJsonToFormattedString4(tagInformation));
-  // print("****************************************");
+  oddFunction(createTNRanges(["092", "110", "111"], ""));
   // print(convertJsonToFormattedString3(tagInformation));
   // print("****************************************");
-  // print(r2);
-  TagInformation convertedTagInformation = convertFormattedStringToJson(convertJsonToFormattedString4(tagInformation));
-  // // print(jsonEncode(convertedTagInformation.toJson()));
-  // print("****************************************");
-  // validation(convertedTagInformation, tagInformation);
+  print(convertJsonToFormattedString4(tagInformation));
+  print("****************************************");
+  TagInformation convertedTagInformation = convertFormattedStringToJson4(convertJsonToFormattedString4(tagInformation));
+  // // // print(jsonEncode(convertedTagInformation.toJson()));
+  // // print("****************************************");
+  validation(convertedTagInformation, tagInformation);
 }
 
 void validation(TagInformation convertedTagInformation, TagInformation tagInformation) {
@@ -770,12 +737,16 @@ void validation(TagInformation convertedTagInformation, TagInformation tagInform
       // print("here");
       if (tag1.tagNumber == tag2.tagNumber) {
         if (tag1.currentPosition == tag2.currentPosition) {
-          if (tag1.tagPositions[0].containerCode == null && tag2.tagPositions[0].containerCode == "") {
+          if (tag1.tagPositions[0].containerCode == null) {
             numberOfEquals++;
             print("${numberOfEquals}- Equal");
           } else if (tag1.tagPositions[0].containerCode == tag2.tagPositions[0].containerCode) {
             numberOfEquals++;
             print("${numberOfEquals}- Equal");
+          }else{
+            print("////////");
+            print("Not equal");
+            print("tag1.containerCode: " + tag1.tagPositions[0].containerCode??"null" + "  " + "tag2.containerCode: " + tag2.tagPositions[0].containerCode??"null");
           }
 
           // else {
